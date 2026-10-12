@@ -69,14 +69,14 @@ Shader "Icefied/Ice"
                 return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.5453);
             }
 
-            float2 MaskAt(float2 uv)
+            float3 MaskAt(float2 uv)
             {
                 float2 t = _MaskTexel.xy * 1.5;
-                float2 m = SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv).rg * 2;
-                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv + float2(t.x, 0)).rg;
-                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv - float2(t.x, 0)).rg;
-                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv + float2(0, t.y)).rg;
-                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv - float2(0, t.y)).rg;
+                float3 m = SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv).rgb * 2;
+                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv + float2(t.x, 0)).rgb;
+                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv - float2(t.x, 0)).rgb;
+                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv + float2(0, t.y)).rgb;
+                m += SAMPLE_TEXTURE2D(_IceMask, sampler_IceMask, uv - float2(0, t.y)).rgb;
                 return m / 6;
             }
 
@@ -99,7 +99,7 @@ Shader "Icefied/Ice"
                 if (n.y > 0.5)
                 {
                     float2 uv = (i.positionWS.xz - _BoardRect.xy) / _BoardRect.zw;
-                    float2 mm = MaskAt(uv);
+                    float3 mm = MaskAt(uv);
                     float m = mm.x;
 
                     float2 p = i.positionWS.xz;
@@ -113,9 +113,10 @@ Shader "Icefied/Ice"
                     float edge = 1 - smoothstep(0.5, 0.95, m);
                     col = lerp(col, _EdgeColor.rgb, edge * 0.9);
 
-                    // iz etrafında sıcak parıltı (tehlike bölgesi)
+                    // iz etrafında takım renginde parıltı (B kanalı = mavi oyuncunun izi)
                     float pulse = 0.7 + 0.3 * sin(_Time.y * 9);
-                    col = lerp(col, half3(1.0, 0.55, 0.3), saturate(mm.y * 2.2) * 0.75 * pulse);
+                    half3 trailCol = lerp(half3(1.0, 0.55, 0.3), half3(0.3, 0.68, 1.0), saturate(mm.z / max(mm.y, 0.001)));
+                    col = lerp(col, trailCol, saturate(mm.y * 2.2) * 0.75 * pulse);
 
                     float s = Hash(floor(i.positionWS.xz * 14));
                     float twinkle = sin(_Time.y * 3 + s * 40) * 0.5 + 0.5;

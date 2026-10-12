@@ -8,7 +8,7 @@ namespace Icefied.View
 {
     /// <summary>
     /// Grid'deki buz hücrelerinden kalın bir buz tabakası mesh'i üretir ve
-    /// su/buz shader'larının kullandığı maske texture'ını günceller (R = buz, G = iz).
+    /// su/buz shader'larının kullandığı maske texture'ını günceller (R = buz, G = iz, B = iz mavi oyuncunun).
     /// </summary>
     public class IceBoardView
     {
@@ -64,7 +64,8 @@ namespace Icefied.View
             {
                 byte r = cells[i] == Cell.Ice ? (byte)255 : (byte)0;
                 byte g = cells[i] == Cell.Trail ? (byte)255 : (byte)0;
-                _pixels[i] = new Color32(r, g, 0, 255);
+                byte b = cells[i] == Cell.Trail && _grid.Owner[i] == 1 ? (byte)255 : (byte)0;
+                _pixels[i] = new Color32(r, g, b, 255);
             }
             _mask.SetPixels32(_pixels);
             _mask.Apply(false);

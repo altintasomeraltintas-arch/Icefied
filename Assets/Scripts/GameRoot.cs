@@ -26,6 +26,10 @@ namespace Icefied
         public GameUI UI { get; private set; }
         public DirectionInput Input { get; } = new DirectionInput();
         public LevelController Level { get; private set; }
+        public VersusController Versus { get; private set; }
+
+        /// <summary>Şu an sahnedeki maç (tek oyunculu level ya da PvP).</summary>
+        public MatchBase Match => Versus != null ? (MatchBase)Versus : Level;
 
         int _levelIndex;
         Vector3 _camBase;
@@ -52,8 +56,7 @@ namespace Icefied
             UI.Build();
 
             _levelIndex = Mathf.Clamp(PlayerPrefs.GetInt(ProgressKey, 0), 0, LevelData.All.Length - 1);
-            LoadLevel(_levelIndex);
-            UI.ShowHome(_levelIndex, StartLevel);
+            GoHome();
         }
 
         void Update()
@@ -69,9 +72,24 @@ namespace Icefied
 
         // ============================================================ flow
 
-        void LoadLevel(int index)
+        void ClearMatch()
         {
             if (Level != null) Destroy(Level.gameObject);
+            if (Versus != null) Destroy(Versus.gameObject);
+            Level = null;
+            Versus = null;
+            _fitKey = Vector2.zero;
+        }
+
+        void GoHome()
+        {
+            LoadLevel(_levelIndex);
+            UI.ShowHome(_levelIndex, StartLevel, StartVersus);
+        }
+
+        void LoadLevel(int index)
+        {
+            ClearMatch();
             var go = new GameObject($"Level {index + 1}");
             Level = go.AddComponent<LevelController>();
             Level.Setup(this, index);
@@ -96,7 +114,7 @@ namespace Icefied
             {
                 _levelIndex = next;
                 LoadLevel(next);
-                if (last) UI.ShowHome(next, StartLevel);
+                if (last) UI.ShowHome(next, StartLevel, StartVersus);
                 else StartLevel();
             });
         }
@@ -108,6 +126,30 @@ namespace Icefied
                 LoadLevel(_levelIndex);
                 StartLevel();
             });
+        }
+
+        // ============================================================ versus
+
+        void StartVersus()
+        {
+            var opp = PvpProfile.RandomOpponent();
+            ClearMatch();
+            var go = new GameObject("Versus");
+            Versus = go.AddComponent<VersusController>();
+            Versus.Setup(this, opp.Name, PvpProfile.NextBotSkill);
+            UI.BindVersus(Versus);
+            UI.ShowMatchmaking(opp, () =>
+            {
+                UI.ShowVersusHud(true);
+                Versus.Begin();
+            });
+        }
+
+        public void OnVersusOver(VersusController vc)
+        {
+            int result = vc.Winner == vc.Player ? 1 : vc.Winner == null ? 0 : -1;
+            int delta = PvpProfile.Record(result);
+            UI.ShowVersusResult(vc, result, delta, PvpProfile.Trophies, PvpProfile.League, StartVersus, GoHome);
         }
 
         // ============================================================ scene
@@ -177,19 +219,20 @@ namespace Icefied
         void FitCamera()
         {
             var key = new Vector2(Screen.width, Screen.height);
-            if (key == _fitKey || Level == null) return;
+            var match = Match;
+            if (key == _fitKey || match == null) return;
             _fitKey = key;
 
-            float w = Level.Data.Width * LevelController.CellSize;
-            float h = Level.Data.Height * LevelController.CellSize;
+            float w = match.Data.Width * MatchBase.CellSize;
+            float h = match.Data.Height * MatchBase.CellSize;
             var rot = Quaternion.Euler(CameraPitch, 0, 0);
             Cam.transform.rotation = rot;
             Vector3 fwd = rot * Vector3.forward;
 
             var corners = new[]
             {
-                new Vector3(-w / 2, LevelController.IceTop, -h / 2), new Vector3(w / 2, LevelController.IceTop, -h / 2),
-                new Vector3(-w / 2, LevelController.IceTop, h / 2), new Vector3(w / 2, LevelController.IceTop, h / 2),
+                new Vector3(-w / 2, MatchBase.IceTop, -h / 2), new Vector3(w / 2, MatchBase.IceTop, -h / 2),
+                new Vector3(-w / 2, MatchBase.IceTop, h / 2), new Vector3(w / 2, MatchBase.IceTop, h / 2),
                 new Vector3(-w / 2, 0f, -h / 2), new Vector3(w / 2, 0f, -h / 2)
             };
             const float minX = 0.035f, maxX = 0.965f, minY = 0.07f, maxY = 0.81f;

@@ -36,6 +36,14 @@ namespace Icefied.Game
         protected bool[] DetachedMask;
         bool _boardDirty;
 
+        /// <summary>Bot için salt-okunur erişim.</summary>
+        public IReadOnlyList<Enemy> AllEnemies => Enemies;
+
+        public IEnumerable<Vector2Int> GiftCells
+        {
+            get { foreach (var g in Gifts) yield return g.Cell; }
+        }
+
         protected class Gift
         {
             public Transform T;
@@ -180,7 +188,8 @@ namespace Icefied.Game
             if (_boardDirty) RefreshBoardNow();
         }
 
-        protected Vector2Int BossSeed()
+        /// <summary>Boss'un bulunduğu (ya da ona en yakın) buz hücresi: kesimde kalacak bölgenin tohumu.</summary>
+        public Vector2Int BossSeed()
         {
             var c = new Vector2Int(Mathf.FloorToInt(Boss.Pos.x), Mathf.FloorToInt(Boss.Pos.y));
             if (IceGrid.IsIceLike(Grid.Get(c.x, c.y))) return c;
